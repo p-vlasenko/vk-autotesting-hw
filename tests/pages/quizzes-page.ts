@@ -16,8 +16,8 @@ export function createQuizzesPage(page: Page): QuizzesPageObject {
     async expectQuiz(quiz, questionCountText) {
       await expect(page).toHaveURL(/\/quizzes\.html$/);
       await expect(card(quiz.title)).toHaveCount(1);
-      await expect(card(quiz.title).locator('.quiz-card__description')).toHaveText(quiz.description);
-      await expect(card(quiz.title).locator('.quiz-card__count')).toHaveText(questionCountText);
+      await expect.soft(card(quiz.title).locator('.quiz-card__description')).toHaveText(quiz.description);
+      await expect.soft(card(quiz.title).locator('.quiz-card__count')).toHaveText(questionCountText);
     },
     async reload() {
       await page.reload();
