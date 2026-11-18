@@ -1,21 +1,21 @@
 interface QuizOption {
-  id: number;
-  text: string;
-  correct: boolean;
-  message: string;
+  readonly id: number;
+  readonly text: string;
+  readonly correct: boolean;
+  readonly message: string;
 }
 
 interface QuizQuestion {
-  id: number;
-  text: string;
-  type: 'single' | 'multiple';
-  options: QuizOption[];
+  readonly id: number;
+  readonly text: string;
+  readonly type: 'single' | 'multiple';
+  readonly options: readonly QuizOption[];
 }
 
 export interface Quiz {
-  title: string;
-  description: string;
-  questions: QuizQuestion[];
+  readonly title: string;
+  readonly description: string;
+  readonly questions: readonly QuizQuestion[];
 }
 
 export function createQuiz(): Quiz {
@@ -44,4 +44,21 @@ export function createQuiz(): Quiz {
       },
     ],
   };
+}
+
+export function questionCountText(quiz: Quiz): string {
+  const count = quiz.questions.length;
+  const lastTwoDigits = count % 100;
+  const lastDigit = count % 10;
+
+  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) {
+    return `${String(count)} вопросов`;
+  }
+  if (lastDigit === 1) {
+    return `${String(count)} вопрос`;
+  }
+  if (lastDigit >= 2 && lastDigit <= 4) {
+    return `${String(count)} вопроса`;
+  }
+  return `${String(count)} вопросов`;
 }

@@ -1,43 +1,65 @@
 import { expect, type Page } from '@playwright/test';
+import type { Quiz } from '../data/quiz.ts';
+import type { LoadableComponent } from './loadable-component.ts';
+import { createPageElement } from './page-element.ts';
+import { createQuizzesPage, type QuizzesPageObject } from './quizzes-page.ts';
 
-export type GeneratorPageObject = {
-  open(): Promise<void>;
-  /** Strings are submitted verbatim; other values are serialized as JSON. */
-  addQuiz(quiz: unknown): Promise<void>;
-  expectError(kind: 'parse' | 'structure'): Promise<void>;
-  dismissError(): Promise<void>;
+export type GeneratorPageObject = LoadableComponent<GeneratorPageObject> & {
+  open(): Promise<GeneratorPageObject>;
+  addQuiz(quiz: Quiz): Promise<QuizzesPageObject>;
+  submitQuizData(data: unknown): Promise<GeneratorPageObject>;
+  expectError(kind: 'parse' | 'structure'): Promise<GeneratorPageObject>;
+  dismissError(): Promise<GeneratorPageObject>;
 };
 
 export function createGeneratorPage(page: Page): GeneratorPageObject {
-  const input = page.locator('#quiz-json-input');
-  const error = page.locator('.modal_error');
+  const input = createPageElement(page.locator('#quiz-json-input'));
+  const generateButton = createPageElement(page.getByRole('button', { name: 'Сгенерировать', exact: true }));
+  const heading = createPageElement(page.getByRole('heading', { name: 'Генератор квизов', exact: true }));
+  const error = createPageElement(page.locator('.modal_error'));
+  const errorTitle = createPageElement(page.locator('.modal_error .error__title'));
+  const errorMessage = createPageElement(page.locator('.modal_error .error__message'));
+  const continueButton = createPageElement(
+    page.locator('.modal_error').getByRole('button', { name: 'Продолжить', exact: true }),
+  );
 
-  return {
+  const generator: GeneratorPageObject = {
+    async waitForLoaded() {
+      await heading.expectVisible();
+      await input.expectVisible();
+      return generator;
+    },
     async open() {
       await page.goto('./');
-      await expect(page.getByRole('heading', { name: 'Генератор квизов', exact: true })).toBeVisible();
+      return generator.waitForLoaded();
     },
     async addQuiz(quiz) {
-      const json = typeof quiz === 'string' ? quiz : JSON.stringify(quiz);
+      await generator.submitQuizData(quiz);
+      return createQuizzesPage(page).waitForLoaded();
+    },
+    async submitQuizData(data) {
+      const json = typeof data === 'string' ? data : JSON.stringify(data);
       await input.fill(json);
-      await page.getByRole('button', { name: 'Сгенерировать', exact: true }).click();
+      await generateButton.click();
+      return generator;
     },
     async expectError(kind) {
-      await expect(error).toBeVisible();
-      await expect(error.locator('.error__title')).toHaveText(
+      await error.expectVisible();
+      await errorTitle.expectText(
         kind === 'parse'
           ? 'Ошибка: не удалось обработать JSON.'
           : 'Ошибка: Неверная структура JSON.',
       );
-      await expect(error.locator('.error__message')).toHaveText(
-        'Проверьте формат данных и попробуйте снова.',
-      );
+      await errorMessage.expectText('Проверьте формат данных и попробуйте снова.');
       await expect(page).toHaveURL(/\/higher-web-practice-quiz-generator\/(?:index\.html)?$/);
+      return generator;
     },
     async dismissError() {
-      await error.getByRole('button', { name: 'Продолжить', exact: true }).click();
-      await expect(error).toBeHidden();
-      await expect(input).toBeVisible();
+      await continueButton.click();
+      await error.expectHidden();
+      return generator.waitForLoaded();
     },
   };
+
+  return generator;
 }

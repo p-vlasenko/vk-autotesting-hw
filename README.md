@@ -1,9 +1,12 @@
-# ДЗ №5 — автотесты генератора квизов
+# ДЗ №6 — паттерны в автотестах генератора квизов
 
-Семь активных UI-тестов на TypeScript и Playwright с паттерном Page Object
-и один отключённый учебный пример `test.skip()`.
-Проверяют [генератор квизов](https://p-vlasenko.github.io/higher-web-practice-quiz-generator/),
+Семь активных UI-тестов на TypeScript и Playwright и один отключённый учебный
+пример `test.skip()`. Проверяют [генератор квизов](https://p-vlasenko.github.io/higher-web-practice-quiz-generator/),
 размещённый на GitHub Pages. Для запуска нужен интернет.
+
+В архитектуре используются Page Object, Page Element / Wrapper, Loadable
+Component, Chain of Invocations, Value Object, Data Provider и Factory.
+Подробное соответствие паттернов коду приведено в [docs/HW-6.md](docs/HW-6.md).
 
 ## Установка
 

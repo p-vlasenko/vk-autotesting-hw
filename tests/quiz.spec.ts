@@ -1,8 +1,7 @@
 import { test as it } from '@playwright/test';
 import { createQuiz } from './data/quiz.ts';
 import { createGeneratorPage } from './pages/generator-page.ts';
-import { createQuizPage, type QuizPageObject } from './pages/quiz-page.ts';
-import { createQuizzesPage } from './pages/quizzes-page.ts';
+import type { QuizPageObject } from './pages/quiz-page.ts';
 
 const { describe } = it;
 
@@ -35,9 +34,9 @@ describe('Генератор квизов', () => {
         it(`${name} вызывает закрываемую ошибку обработки`, async ({ page }) => {
           const generator = createGeneratorPage(page);
 
-          await generator.addQuiz(json);
-          await generator.expectError('parse');
-          await generator.dismissError();
+          await generator.submitQuizData(json)
+            .then(currentPage => currentPage.expectError('parse'))
+            .then(currentPage => currentPage.dismissError());
         });
       }
     });
@@ -47,8 +46,8 @@ describe('Генератор квизов', () => {
         const generator = createGeneratorPage(page);
         const { description, questions } = createQuiz();
 
-        await generator.addQuiz({ description, questions });
-        await generator.expectError('structure');
+        await generator.submitQuizData({ description, questions })
+          .then(currentPage => currentPage.expectError('structure'));
       });
     });
   });
@@ -56,13 +55,12 @@ describe('Генератор квизов', () => {
   describe('Список сохранённых квизов', { tag: '@storage' }, () => {
     it('созданный квиз сохраняется после перезагрузки', async ({ page }) => {
       const generator = createGeneratorPage(page);
-      const quizzes = createQuizzesPage(page);
       const quiz = createQuiz();
 
-      await generator.addQuiz(quiz);
-      await quizzes.expectQuiz(quiz, '2 вопроса');
-      await quizzes.reload();
-      await quizzes.expectQuiz(quiz, '2 вопроса');
+      const quizzes = await generator.addQuiz(quiz)
+        .then(currentPage => currentPage.expectQuiz(quiz));
+      await quizzes.reload()
+        .then(currentPage => currentPage.expectQuiz(quiz));
     });
 
     // eslint-disable-next-line playwright/no-skipped-test -- Учебная демонстрация аналога @Disabled.
@@ -73,11 +71,10 @@ describe('Генератор квизов', () => {
       },
     }, async ({ page }) => {
       const generator = createGeneratorPage(page);
-      const quizzes = createQuizzesPage(page);
       const quiz = createQuiz();
 
-      await generator.addQuiz(quiz);
-      await quizzes.expectQuiz(quiz, '2 вопроса');
+      await generator.addQuiz(quiz)
+        .then(currentPage => currentPage.expectQuiz(quiz));
     });
   });
 
@@ -106,28 +103,26 @@ describe('Генератор квизов', () => {
     for (const scenario of scenarios) {
       it(scenario.title, async ({ page }) => {
         const generator = createGeneratorPage(page);
-        const quizzes = createQuizzesPage(page);
-        const game = createQuizPage(page);
         const quiz = createQuiz();
 
-        await generator.addQuiz(quiz);
-        await quizzes.expectQuiz(quiz, '2 вопроса');
-        await quizzes.startQuiz(quiz.title);
-        await game.expectQuestion('Какой язык отвечает за структуру страницы?', 1, 2);
-        await game.selectSingleAnswer(scenario.singleAnswer);
-        await game.submitAnswer();
+        const game = await generator.addQuiz(quiz)
+          .then(currentPage => currentPage.expectQuiz(quiz))
+          .then(currentPage => currentPage.startQuiz(quiz.title));
+        await game.expectQuestion('Какой язык отвечает за структуру страницы?', 1, 2)
+          .then(currentPage => currentPage.selectSingleAnswer(scenario.singleAnswer))
+          .then(currentPage => currentPage.submitAnswer());
 
         // eslint-disable-next-line playwright/no-conditional-in-test -- Проверка пояснения предусмотрена только для ошибочного ответа в таблице.
         if (scenario.explanation !== undefined) {
           await game.expectExplanation(scenario.explanation);
         }
 
-        await game.nextQuestion();
-        await game.expectQuestion('Какие элементы являются семантическими?', 2, 2);
-        await game.selectMultipleAnswers(['header', 'main']);
-        await game.submitAnswer();
-        await game.finish();
-        await game.expectResult(scenario.outcome);
+        await game.nextQuestion()
+          .then(currentPage => currentPage.expectQuestion('Какие элементы являются семантическими?', 2, 2))
+          .then(currentPage => currentPage.selectMultipleAnswers(['header', 'main']))
+          .then(currentPage => currentPage.submitAnswer())
+          .then(currentPage => currentPage.finish())
+          .then(currentPage => currentPage.expectResult(scenario.outcome));
       });
     }
   });
