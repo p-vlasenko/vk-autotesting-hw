@@ -1,31 +1,40 @@
 import { expect, type Page } from '@playwright/test';
 import type { Quiz } from '../data/quiz.ts';
+import type { LoadableComponent } from './loadable-component.ts';
+import { createPageElement } from './page-element.ts';
+import { createQuizCard } from './quiz-card.ts';
+import { createQuizPage, type QuizPageObject } from './quiz-page.ts';
 
-export type QuizzesPageObject = {
-  expectQuiz(quiz: Quiz, questionCountText: string): Promise<void>;
-  reload(): Promise<void>;
-  startQuiz(title: string): Promise<void>;
+export type QuizzesPageObject = LoadableComponent<QuizzesPageObject> & {
+  expectQuiz(quiz: Quiz): Promise<QuizzesPageObject>;
+  reload(): Promise<QuizzesPageObject>;
+  startQuiz(title: string): Promise<QuizPageObject>;
 };
 
 export function createQuizzesPage(page: Page): QuizzesPageObject {
-  const card = (title: string) => page.locator('.quiz-card').filter({
-    has: page.getByRole('heading', { name: title, exact: true }),
-  });
+  const firstCard = createPageElement(page.locator('.quiz-card').first());
 
-  return {
-    async expectQuiz(quiz, questionCountText) {
+  const quizzes: QuizzesPageObject = {
+    async waitForLoaded() {
       await expect(page).toHaveURL(/\/quizzes\.html$/);
-      await expect(card(quiz.title)).toHaveCount(1);
-      await expect.soft(card(quiz.title).locator('.quiz-card__description')).toHaveText(quiz.description);
-      await expect.soft(card(quiz.title).locator('.quiz-card__count')).toHaveText(questionCountText);
+      await firstCard.expectVisible();
+      return quizzes;
+    },
+    async expectQuiz(quiz) {
+      await createQuizCard(page, quiz.title).expectContent(quiz);
+      return quizzes;
     },
     async reload() {
       await page.reload();
+      return quizzes.waitForLoaded();
     },
     async startQuiz(title) {
-      await card(title).getByRole('link', { name: 'Пройти', exact: true }).click();
+      await createQuizCard(page, title).start();
       await expect(page).toHaveURL(/\/quiz\.html\?id=[^&]+(?:&question=1)?$/);
-      await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
+      await createPageElement(page.getByRole('heading', { name: title, exact: true })).expectVisible();
+      return createQuizPage(page).waitForLoaded();
     },
   };
+
+  return quizzes;
 }

@@ -1,53 +1,77 @@
 import { expect, type Page } from '@playwright/test';
+import type { LoadableComponent } from './loadable-component.ts';
+import { createPageElement } from './page-element.ts';
 
-export type QuizPageObject = {
-  expectQuestion(text: string, current: number, total: number): Promise<void>;
-  selectSingleAnswer(text: string): Promise<void>;
-  selectMultipleAnswers(texts: readonly string[]): Promise<void>;
-  submitAnswer(): Promise<void>;
-  expectExplanation(text: string): Promise<void>;
-  nextQuestion(): Promise<void>;
-  finish(): Promise<void>;
-  expectResult(outcome: 'all-correct' | 'one-correct'): Promise<void>;
+export type QuizPageObject = LoadableComponent<QuizPageObject> & {
+  expectQuestion(text: string, current: number, total: number): Promise<QuizPageObject>;
+  selectSingleAnswer(text: string): Promise<QuizPageObject>;
+  selectMultipleAnswers(texts: readonly string[]): Promise<QuizPageObject>;
+  submitAnswer(): Promise<QuizPageObject>;
+  expectExplanation(text: string): Promise<QuizPageObject>;
+  nextQuestion(): Promise<QuizPageObject>;
+  finish(): Promise<QuizPageObject>;
+  expectResult(outcome: 'all-correct' | 'one-correct'): Promise<QuizPageObject>;
 };
 
 export function createQuizPage(page: Page): QuizPageObject {
-  const question = page.locator('.quiz__question');
-  const result = page.locator('.quiz-result');
+  const questionLocator = page.locator('.quiz__question');
+  const question = createPageElement(questionLocator);
+  const progress = createPageElement(page.locator('.quiz__progress-text'));
+  const result = createPageElement(page.locator('.quiz-result'));
+  const quiz = createPageElement(page.locator('.quiz'));
+  const resultDetails = createPageElement(page.locator('.quiz-result__details'));
+  const submitButton = createPageElement(page.getByRole('button', { name: 'Ответить', exact: true }));
+  const nextButton = createPageElement(page.getByRole('button', { name: 'Следующий вопрос', exact: true }));
+  const finishButton = createPageElement(page.getByRole('button', { name: 'Завершить тест', exact: true }));
 
-  return {
+  const quizPage: QuizPageObject = {
+    async waitForLoaded() {
+      await question.expectVisible();
+      return quizPage;
+    },
     async expectQuestion(text, current, total) {
-      await expect(question.getByRole('heading', { name: text, exact: true })).toBeVisible();
-      await expect(page.locator('.quiz__progress-text')).toHaveText(`Вопрос ${String(current)} из ${String(total)}`);
+      await createPageElement(questionLocator.getByRole('heading', { name: text, exact: true })).expectVisible();
+      await progress.expectText(`Вопрос ${String(current)} из ${String(total)}`);
+      return quizPage;
     },
     async selectSingleAnswer(text) {
-      await question.getByRole('radio', { name: text, exact: true }).check();
+      await createPageElement(questionLocator.getByRole('radio', { name: text, exact: true })).check();
+      return quizPage;
     },
     async selectMultipleAnswers(texts) {
       for (const text of texts) {
-        await question.getByRole('checkbox', { name: text, exact: true }).check();
+        await createPageElement(questionLocator.getByRole('checkbox', { name: text, exact: true })).check();
       }
+      return quizPage;
     },
     async submitAnswer() {
-      await page.getByRole('button', { name: 'Ответить', exact: true }).click();
+      await submitButton.click();
+      return quizPage;
     },
     async expectExplanation(text) {
-      await expect(question.getByText(text, { exact: true })).toBeVisible();
+      await createPageElement(questionLocator.getByText(text, { exact: true })).expectVisible();
+      return quizPage;
     },
     async nextQuestion() {
-      await page.getByRole('button', { name: 'Следующий вопрос', exact: true }).click();
+      await nextButton.click();
+      return quizPage.waitForLoaded();
     },
     async finish() {
-      await page.getByRole('button', { name: 'Завершить тест', exact: true }).click();
+      await finishButton.click();
+      return quizPage;
     },
     async expectResult(outcome) {
-      await expect(result).toBeVisible();
-      await expect(page.locator('.quiz')).toBeHidden();
-      await expect(result.locator('.quiz-result__details')).toHaveText(
+      await result.expectVisible();
+      await quiz.expectHidden();
+      await resultDetails.expectText(
         outcome === 'all-correct'
           ? 'Вы ответили правильно на все вопросы 🎉'
           : 'Вы ответили правильно только на 1 из 2 вопросов.',
       );
+      await expect(page).toHaveURL(/\/quiz\.html\?id=[^&]+/);
+      return quizPage;
     },
   };
+
+  return quizPage;
 }
