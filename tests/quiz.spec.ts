@@ -84,18 +84,39 @@ describe('Генератор квизов', () => {
     const scenarios: readonly {
       title: string;
       singleAnswer: string;
+      multipleAnswers: readonly string[];
       explanation?: string;
       outcome: Parameters<QuizPageObject['expectResult']>[0];
     }[] = [
       {
         title: 'правильные ответы single и multiple дают максимальный результат',
         singleAnswer: 'HTML',
+        multipleAnswers: ['header', 'main'],
         outcome: 'all-correct',
       },
       {
-        title: 'ошибочный ответ показывает пояснение и даёт результат 1 из 2',
+        title: 'ошибочный ответ single показывает пояснение и даёт результат 1 из 2',
         singleAnswer: 'CSS',
+        multipleAnswers: ['header', 'main'],
         explanation: 'CSS отвечает за оформление, а не структуру.',
+        outcome: 'one-correct',
+      },
+      {
+        title: 'неполный правильный набор multiple даёт результат 1 из 2',
+        singleAnswer: 'HTML',
+        multipleAnswers: ['header'],
+        outcome: 'one-correct',
+      },
+      {
+        title: 'лишний неправильный вариант multiple даёт результат 1 из 2',
+        singleAnswer: 'HTML',
+        multipleAnswers: ['header', 'main', 'div'],
+        outcome: 'one-correct',
+      },
+      {
+        title: 'только неправильный вариант multiple даёт результат 1 из 2',
+        singleAnswer: 'HTML',
+        multipleAnswers: ['div'],
         outcome: 'one-correct',
       },
     ];
@@ -119,7 +140,7 @@ describe('Генератор квизов', () => {
 
         await game.nextQuestion()
           .then(currentPage => currentPage.expectQuestion('Какие элементы являются семантическими?', 2, 2))
-          .then(currentPage => currentPage.selectMultipleAnswers(['header', 'main']))
+          .then(currentPage => currentPage.selectMultipleAnswers(scenario.multipleAnswers))
           .then(currentPage => currentPage.submitAnswer())
           .then(currentPage => currentPage.finish())
           .then(currentPage => currentPage.expectResult(scenario.outcome));

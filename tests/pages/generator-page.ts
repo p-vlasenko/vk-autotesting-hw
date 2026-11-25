@@ -16,17 +16,27 @@ export function createGeneratorPage(page: Page): GeneratorPageObject {
   const input = createPageElement(page.locator('#quiz-json-input'));
   const generateButton = createPageElement(page.getByRole('button', { name: 'Сгенерировать', exact: true }));
   const heading = createPageElement(page.getByRole('heading', { name: 'Генератор квизов', exact: true }));
-  const error = createPageElement(page.locator('.modal_error'));
-  const errorTitle = createPageElement(page.locator('.modal_error .error__title'));
-  const errorMessage = createPageElement(page.locator('.modal_error .error__message'));
+  const errorLocator = page.locator('.modal_error');
+  const error = createPageElement(errorLocator);
+  const errorTitle = createPageElement(errorLocator.locator('.error__title'));
+  const errorMessage = createPageElement(errorLocator.locator('.error__message'));
   const continueButton = createPageElement(
-    page.locator('.modal_error').getByRole('button', { name: 'Продолжить', exact: true }),
+    errorLocator.getByRole('button', { name: 'Продолжить', exact: true }),
   );
 
   const generator: GeneratorPageObject = {
     async waitForLoaded() {
       await heading.expectVisible();
       await input.expectVisible();
+      await page.evaluate(async () => {
+        const entryScript = document.querySelector<HTMLScriptElement>('script[type="module"][src]');
+        if (entryScript === null) {
+          throw new Error('Generator entry module was not found.');
+        }
+
+        // The same URL reuses the script's module record; import() also waits for top-level await.
+        await import(entryScript.src);
+      });
       return generator;
     },
     async open() {
