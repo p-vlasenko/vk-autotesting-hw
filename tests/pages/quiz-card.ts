@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import { test, type Page } from '@playwright/test';
 import { questionCountText, type Quiz } from '../data/quiz.ts';
 import type { LoadableComponent } from './loadable-component.ts';
 import { createPageElement } from './page-element.ts';
@@ -25,10 +25,12 @@ export function createQuizCard(page: Page, title: string): QuizCardComponent {
       return component;
     },
     async expectContent(quiz) {
-      await component.waitForLoaded();
-      await description.expectTextSoft(quiz.description);
-      await questionCount.expectTextSoft(questionCountText(quiz));
-      return component;
+      return test.step(`Проверить карточку квиза «${quiz.title}»`, async () => {
+        await component.waitForLoaded();
+        await description.expectTextSoft(quiz.description);
+        await questionCount.expectTextSoft(questionCountText(quiz));
+        return component;
+      }, { box: true });
     },
     async start() {
       await startLink.click();

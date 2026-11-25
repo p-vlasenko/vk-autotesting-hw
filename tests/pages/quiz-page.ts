@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import type { LoadableComponent } from './loadable-component.ts';
 import { createPageElement } from './page-element.ts';
 
@@ -30,46 +30,57 @@ export function createQuizPage(page: Page): QuizPageObject {
       return quizPage;
     },
     async expectQuestion(text, current, total) {
-      await createPageElement(questionLocator.getByRole('heading', { name: text, exact: true })).expectVisible();
-      await progress.expectText(`Вопрос ${String(current)} из ${String(total)}`);
-      return quizPage;
+      return test.step(`Проверить вопрос ${String(current)}: «${text}»`, async () => {
+        await createPageElement(questionLocator.getByRole('heading', { name: text, exact: true })).expectVisible();
+        await progress.expectText(`Вопрос ${String(current)} из ${String(total)}`);
+        return quizPage;
+      }, { box: true });
     },
     async selectSingleAnswer(text) {
       await createPageElement(questionLocator.getByRole('radio', { name: text, exact: true })).check();
       return quizPage;
     },
     async selectMultipleAnswers(texts) {
-      for (const text of texts) {
-        await createPageElement(questionLocator.getByRole('checkbox', { name: text, exact: true })).check();
-      }
-      return quizPage;
+      return test.step(`Выбрать варианты ответа: ${texts.join(', ')}`, async () => {
+        for (const text of texts) {
+          await createPageElement(questionLocator.getByRole('checkbox', { name: text, exact: true })).check();
+        }
+        return quizPage;
+      }, { box: true });
     },
     async submitAnswer() {
       await submitButton.click();
       return quizPage;
     },
     async expectExplanation(text) {
-      await createPageElement(questionLocator.getByText(text, { exact: true })).expectVisible();
-      return quizPage;
+      return test.step('Проверить пояснение к ответу', async () => {
+        await createPageElement(questionLocator.getByText(text, { exact: true })).expectVisible();
+        return quizPage;
+      }, { box: true });
     },
     async nextQuestion() {
       await nextButton.click();
       return quizPage.waitForLoaded();
     },
     async finish() {
-      await finishButton.click();
-      return quizPage;
+      return test.step('Завершить квиз', async () => {
+        await finishButton.click();
+        return quizPage;
+      }, { box: true });
     },
     async expectResult(outcome) {
-      await result.expectVisible();
-      await quiz.expectHidden();
-      await resultDetails.expectText(
-        outcome === 'all-correct'
-          ? 'Вы ответили правильно на все вопросы 🎉'
-          : 'Вы ответили правильно только на 1 из 2 вопросов.',
-      );
-      await expect(page).toHaveURL(/\/quiz\.html\?id=[^&]+/);
-      return quizPage;
+      const description = outcome === 'all-correct' ? 'все ответы правильные' : '1 из 2 ответов правильный';
+      return test.step(`Проверить результат: ${description}`, async () => {
+        await result.expectVisible();
+        await quiz.expectHidden();
+        await resultDetails.expectText(
+          outcome === 'all-correct'
+            ? 'Вы ответили правильно на все вопросы 🎉'
+            : 'Вы ответили правильно только на 1 из 2 вопросов.',
+        );
+        await expect(page).toHaveURL(/\/quiz\.html\?id=[^&]+/);
+        return quizPage;
+      }, { box: true });
     },
   };
 

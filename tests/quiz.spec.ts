@@ -1,13 +1,12 @@
-import { test as it } from '@playwright/test';
 import { createQuiz } from './data/quiz.ts';
-import { createGeneratorPage } from './pages/generator-page.ts';
+import { test as it } from './fixtures.ts';
 import type { QuizPageObject } from './pages/quiz-page.ts';
 
 const { describe } = it;
 
 describe('Генератор квизов', () => {
-  it.beforeEach('Открыть генератор', async ({ page }) => {
-    await createGeneratorPage(page).open();
+  it.beforeEach('Открыть генератор', async ({ generator }) => {
+    await generator.open();
   });
 
   it.afterEach('Приложить сведения о выполнении', async ({ page }, testInfo) => {
@@ -31,36 +30,32 @@ describe('Генератор квизов', () => {
       ];
 
       for (const { name, json } of invalidJsonCases) {
-        it(`${name} вызывает закрываемую ошибку обработки`, async ({ page }) => {
-          const generator = createGeneratorPage(page);
-
-          await generator.submitQuizData(json)
-            .then(currentPage => currentPage.expectError('parse'))
-            .then(currentPage => currentPage.dismissError());
+        it(`${name} вызывает закрываемую ошибку обработки`, async ({ generator }) => {
+          await generator.submitQuizData(json);
+          await generator.expectError('parse');
+          await generator.dismissError();
         });
       }
     });
 
     describe('Структура', () => {
-      it('JSON без title вызывает ошибку структуры', async ({ page }) => {
-        const generator = createGeneratorPage(page);
+      it('JSON без title вызывает ошибку структуры', async ({ generator }) => {
         const { description, questions } = createQuiz();
 
-        await generator.submitQuizData({ description, questions })
-          .then(currentPage => currentPage.expectError('structure'));
+        await generator.submitQuizData({ description, questions });
+        await generator.expectError('structure');
       });
     });
   });
 
   describe('Список сохранённых квизов', { tag: '@storage' }, () => {
-    it('созданный квиз сохраняется после перезагрузки', async ({ page }) => {
-      const generator = createGeneratorPage(page);
+    it('созданный квиз сохраняется после перезагрузки', async ({ generator }) => {
       const quiz = createQuiz();
 
       const quizzes = await generator.addQuiz(quiz)
         .then(currentPage => currentPage.expectQuiz(quiz));
-      await quizzes.reload()
-        .then(currentPage => currentPage.expectQuiz(quiz));
+      await quizzes.reload();
+      await quizzes.expectQuiz(quiz);
     });
 
     // eslint-disable-next-line playwright/no-skipped-test -- Учебная демонстрация аналога @Disabled.
@@ -69,12 +64,11 @@ describe('Генератор квизов', () => {
         type: 'skip',
         description: 'Учебная демонстрация аналога @Disabled; поведение покрыто активным тестом сохранения.',
       },
-    }, async ({ page }) => {
-      const generator = createGeneratorPage(page);
+    }, async ({ generator }) => {
       const quiz = createQuiz();
 
-      await generator.addQuiz(quiz)
-        .then(currentPage => currentPage.expectQuiz(quiz));
+      const quizzes = await generator.addQuiz(quiz);
+      await quizzes.expectQuiz(quiz);
     });
   });
 
@@ -122,28 +116,27 @@ describe('Генератор квизов', () => {
     ];
 
     for (const scenario of scenarios) {
-      it(scenario.title, async ({ page }) => {
-        const generator = createGeneratorPage(page);
+      it(scenario.title, async ({ generator }) => {
         const quiz = createQuiz();
 
-        const game = await generator.addQuiz(quiz)
-          .then(currentPage => currentPage.expectQuiz(quiz))
-          .then(currentPage => currentPage.startQuiz(quiz.title));
-        await game.expectQuestion('Какой язык отвечает за структуру страницы?', 1, 2)
-          .then(currentPage => currentPage.selectSingleAnswer(scenario.singleAnswer))
-          .then(currentPage => currentPage.submitAnswer());
+        const quizzes = await generator.addQuiz(quiz);
+        await quizzes.expectQuiz(quiz);
+        const game = await quizzes.startQuiz(quiz.title);
+        await game.expectQuestion('Какой язык отвечает за структуру страницы?', 1, 2);
+        await game.selectSingleAnswer(scenario.singleAnswer);
+        await game.submitAnswer();
 
         // eslint-disable-next-line playwright/no-conditional-in-test -- Проверка пояснения предусмотрена только для ошибочного ответа в таблице.
         if (scenario.explanation !== undefined) {
           await game.expectExplanation(scenario.explanation);
         }
 
-        await game.nextQuestion()
-          .then(currentPage => currentPage.expectQuestion('Какие элементы являются семантическими?', 2, 2))
-          .then(currentPage => currentPage.selectMultipleAnswers(scenario.multipleAnswers))
-          .then(currentPage => currentPage.submitAnswer())
-          .then(currentPage => currentPage.finish())
-          .then(currentPage => currentPage.expectResult(scenario.outcome));
+        await game.nextQuestion();
+        await game.expectQuestion('Какие элементы являются семантическими?', 2, 2);
+        await game.selectMultipleAnswers(scenario.multipleAnswers);
+        await game.submitAnswer();
+        await game.finish();
+        await game.expectResult(scenario.outcome);
       });
     }
   });

@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import type { Quiz } from '../data/quiz.ts';
 import type { LoadableComponent } from './loadable-component.ts';
 import { createPageElement } from './page-element.ts';
@@ -25,14 +25,18 @@ export function createQuizzesPage(page: Page): QuizzesPageObject {
       return quizzes;
     },
     async reload() {
-      await page.reload();
-      return quizzes.waitForLoaded();
+      return test.step('Перезагрузить список квизов', async () => {
+        await page.reload();
+        return quizzes.waitForLoaded();
+      }, { box: true });
     },
     async startQuiz(title) {
-      await createQuizCard(page, title).start();
-      await expect(page).toHaveURL(/\/quiz\.html\?id=[^&]+(?:&question=1)?$/);
-      await createPageElement(page.getByRole('heading', { name: title, exact: true })).expectVisible();
-      return createQuizPage(page).waitForLoaded();
+      return test.step(`Начать прохождение квиза «${title}»`, async () => {
+        await createQuizCard(page, title).start();
+        await expect(page).toHaveURL(/\/quiz\.html\?id=[^&]+(?:&question=1)?$/);
+        await createPageElement(page.getByRole('heading', { name: title, exact: true })).expectVisible();
+        return createQuizPage(page).waitForLoaded();
+      }, { box: true });
     },
   };
 
